@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Ticket Resolution Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 flex items-center justify-center min-h-screen">
+    <div class="w-full max-w-2xl mx-auto p-4 sm:p-6 md:p-8">
+        <div class="bg-white rounded-2xl shadow-lg p-8">
+            <div class="text-center mb-8">
+                <h1 class="text-3xl font-bold text-gray-800">AI Ticket Resolution Assistant</h1>
+                <p class="text-gray-500 mt-2">Enter a support query below to classify its support level (L1, L2, L3) and get a recommended solution.</p>
+            </div>
+
+            <form id="ticketForm">
+                <div class="mb-6">
+                    <label for="ticketQuery" class="block text-sm font-medium text-gray-700 mb-2">Ticket Query</label>
+                    <textarea id="ticketQuery" rows="6" class="w-full p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-shadow duration-200" placeholder="e.g., 'My computer is running very slow and frequently freezes...'"></textarea>
+                </div>
+                <button type="submit" id="submitButton" class="w-full bg-blue-600 text-white font-semibold py-3 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-transform transform hover:scale-105">
+                    Classify Ticket
+                </button>
+            </form>
+
+            <div id="result" class="mt-8 hidden">
+                <h2 class="text-2xl font-bold text-gray-800 mb-4">Classification Result</h2>
+                <div class="bg-gray-50 p-6 rounded-lg border border-gray-200 space-y-4">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-500">Classification Level</h3>
+                        <p id="classificationLevel" class="text-lg font-bold text-blue-600"></p>
+                    </div>
+                     <div>
+                        <h3 class="text-sm font-semibold text-gray-500">Query</h3>
+                        <p id="resultQuery" class="text-gray-700 italic">"</p>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-500">Suggested Solution</h3>
+                        <p id="suggestedSolution" class="text-gray-700"></p>
+                    </div>
+                    <div id="escalationReportContainer" class="hidden">
+                        <h3 class="text-sm font-semibold text-gray-500">Escalation Report</h3>
+                        <p id="escalationReport" class="text-red-600 font-medium"></p>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="loading" class="mt-8 text-center hidden">
+                 <p class="text-gray-500">Analyzing ticket...</p>
+            </div>
+
+            <div id="error" class="mt-8 text-center hidden p-4 bg-red-100 text-red-700 rounded-lg">
+                 <p>Could not connect to the AI model server. Please ensure the Python server is running and try again.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('ticketForm');
+        const submitButton = document.getElementById('submitButton');
+        const queryInput = document.getElementById('ticketQuery');
+        const resultDiv = document.getElementById('result');
+        const loadingDiv = document.getElementById('loading');
+        const errorDiv = document.getElementById('error');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const query = queryInput.value.trim();
+            if (!query) {
+                alert('Please enter a ticket query.');
+                return;
+            }
+
+            // Reset UI
+            resultDiv.classList.add('hidden');
+            errorDiv.classList.add('hidden');
+            loadingDiv.classList.remove('hidden');
+            submitButton.disabled = true;
+            submitButton.textContent = 'Analyzing...';
+            
+            try {
+                const response = await fetch('http://127.0.0.1:5000/predict', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: query }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+
+                const data = await response.json();
+                
+                // Populate and show results
+                document.getElementById('classificationLevel').textContent = data.level;
+                document.getElementById('resultQuery').textContent = `"${data.query}"`;
+                document.getElementById('suggestedSolution').textContent = data.solution;
+                
+                const escalationContainer = document.getElementById('escalationReportContainer');
+                const escalationReport = document.getElementById('escalationReport');
+                if (data.escalation) {
+                    escalationReport.textContent = data.escalation;
+                    escalationContainer.classList.remove('hidden');
+                } else {
+                    escalationContainer.classList.add('hidden');
+                }
+
+                resultDiv.classList.remove('hidden');
+
+            } catch (err) {
+                errorDiv.classList.remove('hidden');
+                console.error('Fetch error:', err);
+            } finally {
+                loadingDiv.classList.add('hidden');
+                submitButton.disabled = false;
+                submitButton.textContent = 'Classify Ticket';
+            }
+        });
+    </script>
+</body>
+</html>
